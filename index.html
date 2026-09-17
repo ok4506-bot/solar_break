@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>서울 건폐율·용적률과 정북일조 검토기</title>
+<meta name="description" content="서울시 조례 기준으로 건폐율·용적률과 정북일조 사선제한을 한 번에 검토합니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #F6F8FC;
+    --paper: #FFFFFF;
+    --ink: #10204A;
+    --ink-soft: #55628A;
+    --line: #CBD4E4;
+    --cobalt: #0047AB;
+    --cobalt-tint: #E5EDFA;
+    --over: #D6322B;
+    --over-tint: #FCEBEA;
+    --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 48px 24px 72px;
+  }
+
+  /* 머리말 */
+  .masthead { margin-bottom: 40px; max-width: 40em; }
+  .masthead h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+  .masthead p { margin: 0; color: var(--ink-soft); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* 입력 패널 */
+  .inputs {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--cobalt);
+    padding: 24px;
+  }
+  .inputs h2, .results h2 {
+    margin: 0 0 16px;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+  .inputs h2:not(:first-child) {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label, .floor-head span {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+  .field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  input[type="text"], select {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="text"]:hover, select:hover { border-color: var(--ink-soft); }
+  input[type="text"]:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--cobalt);
+    outline-offset: 2px;
+  }
+  input.invalid { border-color: var(--over); background: var(--over-tint); }
+
+  .error {
+    margin: 6px 0 0;
+    font-size: 0.8125rem;
+    color: var(--over);
+  }
+  .error:empty { display: none; }
+
+  .field label.check {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin: 12px 0 0; padding: 10px 12px;
+    background: var(--cobalt-tint); border-radius: 4px;
+    color: var(--ink); font-size: 0.9375rem; cursor: pointer;
+  }
+  .check input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--cobalt); flex: none; }
+  .check small { display: block; color: var(--ink-soft); font-size: 0.8125rem; font-weight: 400; }
+  .hint { margin: 6px 0 0; font-size: 0.8125rem; color: var(--ink-soft); }
+
+  /* 층 목록: 단면도처럼 꼭대기 층이 위에 온다 */
+  .floor-head, .floor-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 1fr 36px;
+    gap: 8px;
+    align-items: center;
+  }
+  .floor-head span { margin: 0 0 6px; }
+  .floor-row { margin-bottom: 8px; }
+  .floor-row .floor-name { font-weight: 600; font-size: 0.9375rem; }
+  .floor-errors .error { margin: 0 0 8px; }
+
+  button { font: inherit; cursor: pointer; }
+  .btn-remove {
+    width: 36px; height: 36px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+  .btn-remove:hover { color: var(--over); border-color: var(--over); }
+  .btn-remove:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-add {
+    width: 100%;
+    height: 44px;
+    margin-bottom: 12px;
+    border: 1px dashed var(--cobalt);
+    border-radius: 4px;
+    background: var(--cobalt-tint);
+    color: var(--cobalt);
+    font-weight: 500;
+  }
+  .btn-add:hover { border-style: solid; }
+
+  /* 결과 */
+  .summary {
+    margin: 0 0 32px;
+    padding-left: 16px;
+    border-left: 4px solid var(--cobalt);
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .summary.is-over { border-left-color: var(--over); }
+  .summary.is-empty { border-left-color: var(--line); color: var(--ink-soft); font-weight: 500; }
+
+  .ratios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 16px;
+  }
+  .ratio-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .ratio-name { font-weight: 500; color: var(--ink-soft); }
+  .verdict { font-weight: 600; color: var(--cobalt); }
+  .verdict.is-over { color: var(--over); }
+  .ratio-value {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .ratio-value small { font-size: 1rem; font-weight: 500; color: var(--ink-soft); letter-spacing: 0; }
+
+  .gauge {
+    position: relative;
+    height: 10px;
+    margin: 12px 0 8px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+  }
+  .gauge-fill { height: 100%; background: var(--cobalt); transition: width 0.25s ease; }
+  .gauge-fill.is-over { background: var(--over); }
+  .gauge-limit {
+    position: absolute; top: -5px; bottom: -5px;
+    width: 2px; background: var(--ink);
+  }
+  .ratio-note { margin: 0; font-size: 0.875rem; color: var(--ink-soft); }
+
+  .extra {
+    margin: 0 0 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* 단면 도면 */
+  .sheet {
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 8px;
+  }
+  .sheet svg { display: block; width: 100%; height: auto; }
+  .sheet-caption {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px;
+    margin-top: 8px; padding: 8px 8px 4px;
+    border-top: 1px solid var(--ink);
+    font-size: 0.8125rem;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-soft); }
+  .legend i {
+    display: inline-block; width: 12px; height: 12px;
+    margin-right: 6px; vertical-align: -1px;
+    border: 1px solid var(--cobalt);
+  }
+  .legend .lg-line { height: 0; border: 0; border-top: 3px solid var(--cobalt); vertical-align: 4px; width: 18px; }
+  .legend .lg-zone { background: var(--cobalt-tint); }
+  .legend .lg-ok { background: var(--paper); border-color: var(--ink); }
+  .legend .lg-over { background: var(--over); border-color: var(--over); }
+
+  .table-wrap { overflow-x: auto; margin-top: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+  th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-weight: 500; color: var(--ink-soft); font-size: 0.8125rem; border-bottom-color: var(--ink); }
+  td.is-over { color: var(--over); font-weight: 600; }
+  td.is-ok { color: var(--cobalt); font-weight: 600; }
+
+  .basis {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    max-width: 52em;
+  }
+  .basis h2 { margin: 0 0 8px; font-size: 0.9375rem; color: var(--ink); }
+  .basis ul { margin: 0; padding-left: 1.2em; }
+  .basis li { margin-bottom: 4px; }
+
+  [hidden] { display: none !important; }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 32px; }
+    .page { padding: 32px 16px 56px; }
+  }
+  @media (max-width: 480px) {
+    .ratios { grid-template-columns: 1fr; gap: 24px; }
+    .ratio-value { font-size: 2.125rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gauge-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>서울의 이 대지에 이 건물, 지을 수 있을까</h1>
+    <p>대지면적과 층별 면적을 넣으면 서울특별시 조례 기준으로 건폐율·용적률과 정북일조 사선제한을 한 번에 검토합니다. 값을 바꾸면 결과와 단면도가 바로 다시 그려집니다.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- 입력 -->
+    <section class="inputs" aria-label="입력">
+      <h2>대지</h2>
+
+      <div class="field">
+        <label for="siteArea">대지면적 (㎡)</label>
+        <input type="text" inputmode="decimal" id="siteArea" value="330" autocomplete="off">
+        <p class="error" id="siteAreaError" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="zone">용도지역</label>
+        <select id="zone"></select>
+        <p class="hint" id="zoneHint"></p>
+        <label class="check" id="relaxWrap" hidden>
+          <input type="checkbox" id="relax">
+          <span>소규모 건축물 용적률 완화 적용 <small>조례 제51조제2항제9호</small></span>
+        </label>
+        <label class="check" id="downtownWrap" hidden>
+          <input type="checkbox" id="downtown">
+          <span>서울도심 안의 대지 <small>조례 제48조 단서</small></span>
+        </label>
+      </div>
+
+      <div class="field field-pair" id="customLimits" hidden>
+        <div>
+          <label for="customBcr">건폐율 한도 (%)</label>
+          <input type="text" inputmode="decimal" id="customBcr" value="60" autocomplete="off">
+        </div>
+        <div>
+          <label for="customFar">용적률 한도 (%)</label>
+          <input type="text" inputmode="decimal" id="customFar" value="200" autocomplete="off">
+        </div>
+        <p class="error" id="customError" role="alert" style="grid-column: 1 / -1"></p>
+      </div>
+
+      <h2>지상층</h2>
+      <button type="button" class="btn-add" id="addFloor">위에 한 층 추가</button>
+      <div class="floor-head" aria-hidden="true">
+        <span>층</span><span>바닥면적 (㎡)</span><span>층고 (m)</span><span></span>
+      </div>
+      <div id="floorList"></div>
+      <div class="floor-errors" id="floorErrors" role="alert"></div>
+
+      <h2>정북 방향 배치</h2>
+      <div class="field field-pair">
+        <div>
+          <label for="setback">경계선에서 외벽까지 (m)</label>
+          <input type="text" inputmode="decimal" id="setback" value="2" autocomplete="off">
+        </div>
+        <div>
+          <label for="depth">건물 남북 깊이 (m)</label>
+          <input type="text" inputmode="decimal" id="depth" value="11" autocomplete="off">
+        </div>
+        <p class="error" id="layoutError" role="alert" style="grid-column: 1 / -1"></p>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section class="results" aria-label="검토 결과" aria-live="polite">
+      <p class="summary" id="summary"></p>
+
+      <div id="resultBody">
+        <div class="ratios">
+          <div>
+            <div class="ratio-top"><span class="ratio-name">건폐율</span><span class="verdict" id="bcrVerdict"></span></div>
+            <div class="ratio-value" id="bcrValue"></div>
+            <div class="gauge"><div class="gauge-fill" id="bcrFill"></div><div class="gauge-limit" id="bcrLimit"></div></div>
+            <p class="ratio-note" id="bcrNote"></p>
+          </div>
+          <div>
+            <div class="ratio-top"><span class="ratio-name">용적률</span><span class="verdict" id="farVerdict"></span></div>
+            <div class="ratio-value" id="farValue"></div>
+            <div class="gauge"><div class="gauge-fill" id="farFill"></div><div class="gauge-limit" id="farLimit"></div></div>
+            <p class="ratio-note" id="farNote"></p>
+          </div>
+        </div>
+        <p class="extra" id="extraNote"></p>
+
+        <h2>정북 방향 단면</h2>
+        <p class="ratio-note" id="sectionNote" style="margin: -8px 0 12px"></p>
+        <div class="sheet">
+          <div id="section"></div>
+          <div class="sheet-caption">
+            <div class="legend">
+              <span><i class="lg-line"></i>사선제한선</span>
+              <span><i class="lg-zone"></i>지을 수 없는 범위</span>
+              <span><i class="lg-ok"></i>계획 건물</span>
+              <span><i class="lg-over"></i>제한을 넘은 부분</span>
+            </div>
+            <span>가로·세로 같은 축척</span>
+          </div>
+        </div>
+
+        <div class="table-wrap" id="solarTableWrap">
+          <table>
+            <thead>
+              <tr><th>층</th><th>층 상단 높이</th><th>필요한 이격거리</th><th>현재 이격거리</th><th>판정</th></tr>
+            </thead>
+            <tbody id="solarTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="basis">
+    <h2>계산 기준</h2>
+    <ul>
+      <li>건폐율·용적률 한도는 「서울특별시 도시계획 조례」(조례 제10139호, 2026. 7. 13. 시행) 제44조·제48조의 값입니다.</li>
+      <li>제2종·제3종일반주거지역의 "소규모 건축물 용적률 완화"는 같은 조례 제51조제2항제9호에 따라 시행령 상한(250%, 300%)까지 적용한 값입니다. 대상 여부는 서울시장이 따로 정한 운영기준으로 판단하므로, 실제 적용 전에 확인이 필요합니다.</li>
+      <li>상업지역의 "서울도심"은 제48조 단서의 용적률(중심 800%, 일반 600%, 근린·유통 500%)을 적용합니다.</li>
+      <li>건축면적은 가장 넓은 층의 바닥면적으로 어림합니다. 연면적은 지상층만 더하며, 지하층과 주차장 등 용적률 산정에서 빠지는 면적은 다루지 않습니다.</li>
+      <li>정북일조는 「건축법 시행령」 제86조제1항과 「서울특별시 건축 조례」 제35조제1항 기준입니다. 높이 10m 이하 부분은 인접 대지경계선에서 1.5m 이상, 10m를 넘는 부분은 그 높이의 1/2 이상 띄웁니다. 전용주거지역과 일반주거지역에만 적용됩니다.</li>
+      <li>학습용 도구입니다. 임대주택·공공시설 제공에 따른 완화, 학교이적지, 정비사업, 지구단위계획구역, 도로·공원에 접한 대지의 일조 완화 등은 반영하지 않습니다.</li>
+    </ul>
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   건폐율·용적률과 정북일조 검토기
+   수업 노트북(01_Tutorial_for_Python_basic)의 소수 판별기와 같은 뼈대:
+     입력 받기(검증) → 반복문으로 계산 → 조건문으로 판정 → 결과 출력
+   각 함수 위에 같은 일을 하는 파이썬 코드를 주석으로 적어 두었다.
+   ===================================================================== */
+
+/* ---------- 자료: 용도지역별 한도 (파이썬의 dictionary에 해당) ---------- */
+// zones = {'gen2': {'name': '제2종일반주거지역', 'bcr': 60, 'far': 200, 'solar': True}, ...}
+// 서울특별시 도시계획 조례 (조례 제10139호, 2026. 7. 13. 시행)
+//   bcr         건폐율 한도(%)  - 제44조
+//   far         용적률 한도(%)  - 제48조
+//   farRelaxed  제51조제2항제9호 완화 시 한도 (시행령 제85조제1항 상한)
+//   farDowntown 서울도심 안일 때 한도 - 제48조 단서
+//   solar       정북일조 적용 여부 (전용주거·일반주거지역만)
+const ZONES = {
+  excl1:  { group: "주거지역", name: "제1종전용주거지역", bcr: 50, far: 100, solar: true },
+  excl2:  { group: "주거지역", name: "제2종전용주거지역", bcr: 40, far: 120, solar: true },
+  gen1:   { group: "주거지역", name: "제1종일반주거지역", bcr: 60, far: 150, solar: true },
+  gen2:   { group: "주거지역", name: "제2종일반주거지역", bcr: 60, far: 200, farRelaxed: 250, solar: true },
+  gen3:   { group: "주거지역", name: "제3종일반주거지역", bcr: 50, far: 250, farRelaxed: 300, solar: true },
+  semi:   { group: "주거지역", name: "준주거지역",       bcr: 60, far: 400, solar: false },
+  comC:   { group: "상업지역", name: "중심상업지역", bcr: 60, far: 1000, farDowntown: 800, solar: false },
+  comG:   { group: "상업지역", name: "일반상업지역", bcr: 60, far: 800,  farDowntown: 600, solar: false },
+  comN:   { group: "상업지역", name: "근린상업지역", bcr: 60, far: 600,  farDowntown: 500, solar: false },
+  comD:   { group: "상업지역", name: "유통상업지역", bcr: 60, far: 600,  farDowntown: 500, solar: false },
+  indE:   { group: "공업지역", name: "전용공업지역", bcr: 60, far: 200, solar: false },
+  indG:   { group: "공업지역", name: "일반공업지역", bcr: 60, far: 200, solar: false },
+  indS:   { group: "공업지역", name: "준공업지역",   bcr: 60, far: 400, solar: false },
+  grnP:   { group: "녹지지역", name: "보전녹지지역", bcr: 20, far: 50, solar: false },
+  grnA:   { group: "녹지지역", name: "생산녹지지역", bcr: 20, far: 50, solar: false },
+  grnN:   { group: "녹지지역", name: "자연녹지지역", bcr: 20, far: 50, solar: false },
+  custom: { group: "기타", name: "한도 직접 입력 (주거지역, 지구단위계획 등)", bcr: null, far: null, solar: true }
+};
+
+// 정북일조 기준값 (건축법 시행령 제86조제1항, 서울특별시 건축 조례 제35조제1항)
+const SOLAR_BREAK_HEIGHT = 10;   // 이 높이(m)까지는
+const SOLAR_MIN_SETBACK = 1.5;   // 1.5m 이상 띄우고, 넘으면 높이의 1/2
+
+// 화면에 보이는 층 목록. 아래층부터 순서대로 담는다. (파이썬의 list)
+let floors = [
+  { area: "160", height: "3.3" },
+  { area: "160", height: "3.0" },
+  { area: "160", height: "3.0" },
+  { area: "120", height: "3.0" }
+];
+
+
+/* ---------- 1. 입력 받기 ---------- */
+
+// def user_input(text):
+//     try:    x = float(text)
+//     except: return None          # 숫자가 아니면 다시 입력하라고 안내
+//     return x
+function parseNumber(text) {
+  const cleaned = String(text).trim().replace(/,/g, "");
+  if (cleaned === "") return null;
+  const x = Number(cleaned);
+  if (!Number.isFinite(x)) return null;
+  return x;
+}
+
+
+/* ---------- 2. 반복문으로 계산 ---------- */
+
+// def sum_floor_area(areas):
+//     total = 0
+//     for a in areas:
+//         total = total + a
+//     return total
+function sumFloorArea(areas) {
+  let total = 0;
+  for (const a of areas) {
+    total = total + a;
+  }
+  return total;
+}
+
+// 건축면적 어림: 가장 넓은 층을 찾는다.
+// def largest(areas):
+//     biggest = 0
+//     for a in areas:
+//         if a > biggest: biggest = a
+//     return biggest
+function largestFloorArea(areas) {
+  let biggest = 0;
+  for (const a of areas) {
+    if (a > biggest) biggest = a;
+  }
+  return biggest;
+}
+
+// 남은 용적률로 같은 크기의 층을 몇 개 더 올릴 수 있는지 센다.
+// def count_extra_floors(remaining, floor_area):
+//     count = 0
+//     while remaining >= floor_area:
+//         remaining -= floor_area
+//         count += 1
+//     return count
+function countExtraFloors(remainingArea, floorArea) {
+  let count = 0;
+  while (remainingArea >= floorArea && count < 200) {
+    remainingArea -= floorArea;
+    count += 1;
+  }
+  return count;
+}
+
+
+/* ---------- 3. 조건문으로 판정 ---------- */
+
+// def judge(value, limit):
+//     if value <= limit: return '적합'
+//     else:              return '초과'
+function judge(value, limit) {
+  if (value <= limit + 1e-9) {
+    return "적합";
+  } else {
+    return "초과";
+  }
+}
+
+// def required_setback(h):
+//     if h <= 10: return 1.5
+//     else:       return h / 2
+function requiredSetback(heightAtTop) {
+  if (heightAtTop <= SOLAR_BREAK_HEIGHT) {
+    return SOLAR_MIN_SETBACK;
+  } else {
+    return heightAtTop / 2;
+  }
+}
+
+// 층마다 돌면서 상단 높이를 누적하고, 필요한 이격거리와 비교한다.
+// def check_solar(heights, setback):
+//     rows = []; top = 0
+//     for i, h in enumerate(heights):
+//         top += h
+//         need = required_setback(top)
+//         rows.append({'floor': i+1, 'top': top, 'need': need, 'ok': setback >= need})
+//     return rows
+function checkSolar(heights, setback) {
+  const rows = [];
+  let top = 0;
+  for (let i = 0; i < heights.length; i++) {
+    const bottom = top;
+    top += heights[i];
+    const need = requiredSetback(top);
+    rows.push({ floor: i + 1, bottom: bottom, top: top, need: need, ok: setback >= need - 1e-9 });
+  }
+  return rows;
+}
+
+
+/* ---------- 4. 결과 출력 ---------- */
+
+const $ = (id) => document.getElementById(id);
+const fmt = (x, digits = 1) => x.toLocaleString("ko-KR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+function showRatio(prefix, value, limit, verdict, note) {
+  const over = verdict === "초과";
+  $(prefix + "Value").innerHTML = fmt(value) + "<small> % / 한도 " + fmt(limit, 0) + "%</small>";
+  $(prefix + "Verdict").textContent = verdict;
+  $(prefix + "Verdict").classList.toggle("is-over", over);
+  // 막대 전체 길이 = 한도의 125%. 한도선은 항상 80% 지점에 선다.
+  const scaleMax = limit * 1.25;
+  $(prefix + "Fill").style.width = Math.min(100, (value / scaleMax) * 100) + "%";
+  $(prefix + "Fill").classList.toggle("is-over", over);
+  $(prefix + "Limit").style.left = "80%";
+  $(prefix + "Note").textContent = note;
+}
+
+function drawSection(rows, setback, depth, applies) {
+  const totalH = rows[rows.length - 1].top;
+  const maxY = Math.max(totalH + 3, 13);
+  const maxX = Math.max(setback + depth + 2, applies ? maxY / 2 + 1 : 0, 8);
+
+  // 세로에 맞춰 축척을 정하고, 도면 폭은 내용에 맞춘다 (가로·세로 같은 축척)
+  const H = 440, mL = 24, mR = 170, mT = 20, mB = 56;
+  const s = Math.min((H - mT - mB) / maxY, (720 - mL - mR) / maxX);
+  const W = Math.max(480, Math.round(mL + maxX * s + mR), applies ? Math.round(mL + (maxY / 2) * s + 230) : 0);
+  const X = (m) => mL + m * s;
+  const Y = (m) => H - mB - m * s;
+  const xEnd = X(maxX), yTop = Y(maxY);
+
+  let g = "";
+  g += '<defs>' +
+       '<pattern id="hatchZone" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#0047AB" stroke-width="1" opacity="0.35"/></pattern>' +
+       '<pattern id="hatchGround" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#10204A" stroke-width="1" opacity="0.5"/></pattern>' +
+       '</defs>';
+
+  // 지을 수 없는 범위와 사선
+  if (applies) {
+    const pts = [[0, 0], [SOLAR_MIN_SETBACK, 0], [SOLAR_MIN_SETBACK, SOLAR_BREAK_HEIGHT], [SOLAR_BREAK_HEIGHT / 2, SOLAR_BREAK_HEIGHT], [maxY / 2, maxY], [0, maxY]];
+    const poly = pts.map((p) => X(p[0]) + "," + Y(p[1])).join(" ");
+    g += '<clipPath id="clipZone"><polygon points="' + poly + '"/></clipPath>';
+    g += '<polygon points="' + poly + '" fill="#E5EDFA"/>';
+    g += '<polygon points="' + poly + '" fill="url(#hatchZone)"/>';
+    // 10m 기준선
+    const x10 = X(setback + depth) + 92;
+    g += '<line x1="' + X(0) + '" y1="' + Y(10) + '" x2="' + x10 + '" y2="' + Y(10) + '" stroke="#0047AB" stroke-width="1" stroke-dasharray="2 5"/>';
+    g += '<text x="' + (x10 + 6) + '" y="' + (Y(10) + 4) + '" font-size="12" fill="#0047AB">높이 10m</text>';
+  }
+
+  // 건물: 층마다 반복해서 그린다
+  for (const r of rows) {
+    const x0 = X(setback), x1 = X(setback + depth);
+    const yT = Y(r.top), hPx = Y(r.bottom) - Y(r.top);
+    g += '<rect x="' + x0 + '" y="' + yT + '" width="' + (x1 - x0) + '" height="' + hPx + '" fill="#FFFFFF" stroke="#10204A" stroke-width="1.5"/>';
+    if (applies && !r.ok) {
+      // 층 전체를 빨간색으로 칠하되, '지을 수 없는 범위' 모양으로 오려낸다 → 선을 넘은 부분만 남는다
+      g += '<rect x="' + x0 + '" y="' + yT + '" width="' + (x1 - x0) + '" height="' + hPx + '" fill="#D6322B" opacity="0.85" clip-path="url(#clipZone)"/>';
+      g += '<rect x="' + x0 + '" y="' + yT + '" width="' + (x1 - x0) + '" height="' + hPx + '" fill="none" stroke="#10204A" stroke-width="1.5"/>';
+    }
+    if (hPx >= 13) {
+      g += '<text x="' + (x1 + 8) + '" y="' + (yT + hPx / 2 + 4) + '" font-size="12" fill="#10204A">' + r.floor + '층  ' + fmt(r.top) + 'm</text>';
+    }
+  }
+
+  // 사선제한선: 건물 위에 겹쳐 그려서 어느 층이 선을 넘는지 보이게 한다
+  if (applies) {
+    const edgePts = [[SOLAR_MIN_SETBACK, 0], [SOLAR_MIN_SETBACK, SOLAR_BREAK_HEIGHT], [SOLAR_BREAK_HEIGHT / 2, SOLAR_BREAK_HEIGHT], [maxY / 2, maxY]];
+    const edge = edgePts.map((p) => X(p[0]) + "," + Y(p[1])).join(" ");
+    g += '<polyline points="' + edge + '" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>';
+    g += '<polyline points="' + edge + '" fill="none" stroke="#0047AB" stroke-width="2.5" stroke-linejoin="round"/>';
+    // 선을 넘은 층: 층 상단이 사선과 만나는 점을 찍는다 (여기까지 물러나야 함)
+    for (const r of rows) {
+      if (r.ok) continue;
+      g += '<circle cx="' + X(r.need) + '" cy="' + Y(r.top) + '" r="4" fill="#FFFFFF" stroke="#0047AB" stroke-width="2"/>';
+    }
+    g += '<text x="' + (X(maxY / 2) + 10) + '" y="' + (Y(maxY) + 14) + '" font-size="12" font-weight="600" fill="#0047AB">사선제한선 (경계선에서 높이의 1/2)</text>';
+  }
+
+  // 지반
+  g += '<rect x="' + X(0) + '" y="' + Y(0) + '" width="' + (xEnd - X(0)) + '" height="10" fill="url(#hatchGround)"/>';
+  g += '<line x1="' + (X(0) - 12) + '" y1="' + Y(0) + '" x2="' + xEnd + '" y2="' + Y(0) + '" stroke="#10204A" stroke-width="2"/>';
+
+  // 인접 대지경계선 (일점쇄선)
+  g += '<line x1="' + X(0) + '" y1="' + (Y(0) + 14) + '" x2="' + X(0) + '" y2="' + yTop + '" stroke="#10204A" stroke-width="1.5" stroke-dasharray="12 4 2 4"/>';
+  g += '<text x="' + (X(0) + 4) + '" y="' + (H - 8) + '" font-size="12" fill="#10204A">정북 방향 인접 대지경계선</text>';
+
+  // 이격거리 치수선
+  const yDim = Y(0) + 26;
+  g += '<line x1="' + X(0) + '" y1="' + yDim + '" x2="' + X(setback) + '" y2="' + yDim + '" stroke="#10204A" stroke-width="1"/>';
+  g += '<line x1="' + X(setback) + '" y1="' + (yDim - 5) + '" x2="' + X(setback) + '" y2="' + (yDim + 5) + '" stroke="#10204A" stroke-width="1"/>';
+  g += '<text x="' + (X(setback) + 6) + '" y="' + (yDim + 4) + '" font-size="12" fill="#10204A">이격 ' + fmt(setback) + 'm</text>';
+
+  // 방위
+  g += '<text x="' + (W - 8) + '" y="' + (H - 8) + '" font-size="12" fill="#55628A" text-anchor="end">← 북    남 →</text>';
+
+  $("section").innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="정북 방향 단면도. 인접 대지경계선, 지을 수 없는 범위, 계획 건물의 각 층을 보여준다." font-family="inherit">' + g + '</svg>';
+}
+
+
+/* ---------- 5. main(): 위 함수들을 순서대로 호출 ---------- */
+// def main():
+//     num = user_input()
+//     prime(num)
+function main() {
+  let valid = true;
+
+  // (1) 입력 받기와 검증
+  const siteArea = parseNumber($("siteArea").value);
+  const siteOk = siteArea !== null && siteArea > 0;
+  $("siteArea").classList.toggle("invalid", !siteOk);
+  $("siteAreaError").textContent = siteOk ? "" : "대지면적은 0보다 큰 숫자로 다시 입력하세요. 예: 330";
+  if (!siteOk) valid = false;
+
+  const zoneKey = $("zone").value;
+  const zone = ZONES[zoneKey];
+  let bcrLimit = zone.bcr, farLimit = zone.far;
+  $("customLimits").hidden = zoneKey !== "custom";
+  if (zoneKey === "custom") {
+    bcrLimit = parseNumber($("customBcr").value);
+    farLimit = parseNumber($("customFar").value);
+    const bOk = bcrLimit !== null && bcrLimit > 0 && bcrLimit <= 100;
+    const fOk = farLimit !== null && farLimit > 0;
+    $("customBcr").classList.toggle("invalid", !bOk);
+    $("customFar").classList.toggle("invalid", !fOk);
+    $("customError").textContent = bOk && fOk ? "" : "한도는 숫자로 다시 입력하세요. 건폐율은 100 이하, 용적률은 0보다 커야 합니다.";
+    if (!bOk || !fOk) valid = false;
+    $("zoneHint").textContent = "지구단위계획 등으로 따로 정해진 한도를 넣으세요.";
+  } else {
+    // 조건문: 완화·서울도심 선택에 따라 용적률 한도가 달라진다
+    // if zone has relaxed limit and relax checked:   far = relaxed
+    // elif zone has downtown limit and downtown checked: far = downtown
+    let basis = "서울시 조례";
+    if (zone.farRelaxed && $("relax").checked) {
+      farLimit = zone.farRelaxed;
+      basis = "완화 적용";
+    } else if (zone.farDowntown && $("downtown").checked) {
+      farLimit = zone.farDowntown;
+      basis = "서울도심";
+    }
+    $("zoneHint").textContent = basis + ": 건폐율 " + bcrLimit + "%, 용적률 " + farLimit.toLocaleString("ko-KR") + "%";
+  }
+  $("relaxWrap").hidden = !zone.farRelaxed;
+  $("downtownWrap").hidden = !zone.farDowntown;
+
+  const areas = [], heights = [], floorMessages = [];
+  const rowsEl = document.querySelectorAll(".floor-row");
+  for (let i = 0; i < floors.length; i++) {
+    const a = parseNumber(floors[i].area);
+    const h = parseNumber(floors[i].height);
+    const aOk = a !== null && a > 0;
+    const hOk = h !== null && h > 0;
+    const rowEl = rowsEl[floors.length - 1 - i];   // 화면에는 꼭대기 층이 위
+    rowEl.querySelector(".in-area").classList.toggle("invalid", !aOk);
+    rowEl.querySelector(".in-height").classList.toggle("invalid", !hOk);
+    if (!aOk) floorMessages.push((i + 1) + "층 바닥면적은 0보다 큰 숫자로 다시 입력하세요.");
+    if (!hOk) floorMessages.push((i + 1) + "층 층고는 0보다 큰 숫자로 다시 입력하세요.");
+    if (!aOk || !hOk) { valid = false; continue; }
+    areas.push(a);
+    heights.push(h);
+  }
+  $("floorErrors").innerHTML = floorMessages.map((m) => '<p class="error">' + m + "</p>").join("");
+
+  const setback = parseNumber($("setback").value);
+  const depth = parseNumber($("depth").value);
+  const sOk = setback !== null && setback >= 0;
+  const dOk = depth !== null && depth > 0;
+  $("setback").classList.toggle("invalid", !sOk);
+  $("depth").classList.toggle("invalid", !dOk);
+  $("layoutError").textContent = sOk && dOk ? "" : "이격거리는 0 이상, 건물 깊이는 0보다 큰 숫자로 다시 입력하세요.";
+  if (!sOk || !dOk) valid = false;
+
+  if (!valid) {
+    $("summary").className = "summary is-empty";
+    $("summary").textContent = "빨간색으로 표시된 칸을 숫자로 고치면 검토 결과가 나옵니다.";
+    $("resultBody").hidden = true;
+    return;
+  }
+  $("resultBody").hidden = false;
+
+  // (2) 반복문으로 계산
+  const totalArea = sumFloorArea(areas);
+  const buildingArea = largestFloorArea(areas);
+  const bcr = (buildingArea / siteArea) * 100;
+  const far = (totalArea / siteArea) * 100;
+
+  // (3) 조건문으로 판정
+  const bcrVerdict = judge(bcr, bcrLimit);
+  const farVerdict = judge(far, farLimit);
+
+  const maxBuildingArea = siteArea * bcrLimit / 100;
+  const maxTotalArea = siteArea * farLimit / 100;
+  showRatio("bcr", bcr, bcrLimit, bcrVerdict,
+    "건축면적 " + fmt(buildingArea) + "㎡ / 허용 " + fmt(maxBuildingArea) + "㎡");
+  showRatio("far", far, farLimit, farVerdict,
+    "연면적 " + fmt(totalArea) + "㎡ / 허용 " + fmt(maxTotalArea) + "㎡");
+
+  const topFloorArea = areas[areas.length - 1];
+  const remaining = maxTotalArea - totalArea;
+  if (farVerdict === "초과") {
+    $("extraNote").textContent = "연면적을 " + fmt(-remaining) + "㎡ 줄여야 용적률 한도에 맞습니다.";
+  } else {
+    const extra = countExtraFloors(remaining, topFloorArea);
+    if (extra === 0) {
+      $("extraNote").textContent = "남은 연면적은 " + fmt(remaining) + "㎡로, 꼭대기 층(" + fmt(topFloorArea) + "㎡)과 같은 층을 더 올리기에는 모자랍니다.";
+    } else {
+      $("extraNote").textContent = "남은 연면적은 " + fmt(remaining) + "㎡입니다. 꼭대기 층(" + fmt(topFloorArea) + "㎡)과 같은 크기로 " + extra + "개 층을 더 올릴 수 있습니다. 정북일조는 층을 추가해서 따로 확인하세요.";
+    }
+  }
+
+  const solarRows = checkSolar(heights, setback);
+  let solarOverCount = 0;
+  for (const r of solarRows) {
+    if (zone.solar && !r.ok) solarOverCount += 1;
+  }
+
+  // (4) 결과 출력
+  drawSection(solarRows, setback, depth, zone.solar);
+
+  $("sectionNote").textContent = zone.solar
+    ? "파란 선이 사선제한선입니다. 각 층의 상단이 이 선보다 북쪽(왼쪽)으로 나가면 선을 넘은 부분만 빨간색으로 표시됩니다. 흰 점은 그 층이 물러나야 하는 위치입니다."
+    : "이 용도지역은 정북일조 사선제한 대상이 아니어서 제한선을 그리지 않습니다.";
+  $("solarTableWrap").hidden = !zone.solar;
+  let tableHtml = "";
+  for (let i = solarRows.length - 1; i >= 0; i--) {
+    const r = solarRows[i];
+    tableHtml += "<tr><td>" + r.floor + "층</td><td>" + fmt(r.top) + " m</td><td>" + fmt(r.need, 2) + " m</td><td>" + fmt(setback, 2) + " m</td>" +
+      (r.ok ? '<td class="is-ok">적합</td>' : '<td class="is-over">' + fmt(r.need - setback, 2) + " m 부족</td>") + "</tr>";
+  }
+  $("solarTable").innerHTML = tableHtml;
+
+  const problems = [];
+  if (bcrVerdict === "초과") problems.push("건폐율이 한도를 " + fmt(bcr - bcrLimit) + "%p 넘습니다");
+  if (farVerdict === "초과") problems.push("용적률이 한도를 " + fmt(far - farLimit) + "%p 넘습니다");
+  if (solarOverCount > 0) problems.push(solarOverCount + "개 층이 정북일조 사선제한에 걸립니다");
+
+  if (problems.length === 0) {
+    $("summary").className = "summary";
+    $("summary").textContent = zone.solar
+      ? "건폐율, 용적률, 정북일조 모두 적합합니다."
+      : "건폐율과 용적률 모두 적합합니다. " + zone.name + "은 정북일조 사선제한 대상이 아닙니다.";
+  } else {
+    $("summary").className = "summary is-over";
+    $("summary").textContent = problems.join(". ") + "." +
+      (zone.solar ? "" : " " + zone.name + "은 정북일조 사선제한 대상이 아닙니다.");
+  }
+}
+
+
+/* ---------- 화면 준비 ---------- */
+
+function renderFloorList() {
+  let html = "";
+  for (let i = floors.length - 1; i >= 0; i--) {
+    html += '<div class="floor-row" data-index="' + i + '">' +
+      '<span class="floor-name">' + (i + 1) + '층</span>' +
+      '<input type="text" inputmode="decimal" class="in-area" aria-label="' + (i + 1) + '층 바닥면적" value="' + floors[i].area.replace(/"/g, "&quot;") + '" autocomplete="off">' +
+      '<input type="text" inputmode="decimal" class="in-height" aria-label="' + (i + 1) + '층 층고" value="' + floors[i].height.replace(/"/g, "&quot;") + '" autocomplete="off">' +
+      '<button type="button" class="btn-remove" aria-label="' + (i + 1) + '층 삭제" ' + (i !== floors.length - 1 || floors.length === 1 ? "disabled" : "") + '>×</button>' +
+      '</div>';
+  }
+  $("floorList").innerHTML = html;
+}
+
+function setup() {
+  let options = "", currentGroup = "";
+  for (const key in ZONES) {
+    if (ZONES[key].group !== currentGroup) {
+      if (currentGroup !== "") options += "</optgroup>";
+      currentGroup = ZONES[key].group;
+      options += '<optgroup label="' + currentGroup + '">';
+    }
+    options += '<option value="' + key + '"' + (key === "gen2" ? " selected" : "") + ">" + ZONES[key].name + "</option>";
+  }
+  options += "</optgroup>";
+  $("zone").innerHTML = options;
+
+  renderFloorList();
+
+  $("floorList").addEventListener("input", (e) => {
+    const row = e.target.closest(".floor-row");
+    if (!row) return;
+    const i = Number(row.dataset.index);
+    if (e.target.classList.contains("in-area")) floors[i].area = e.target.value;
+    if (e.target.classList.contains("in-height")) floors[i].height = e.target.value;
+    main();
+  });
+
+  // 삭제는 꼭대기 층만 (층 번호가 밀리지 않도록)
+  $("floorList").addEventListener("click", (e) => {
+    if (!e.target.classList.contains("btn-remove") || floors.length === 1) return;
+    floors.pop();
+    renderFloorList();
+    main();
+  });
+
+  $("addFloor").addEventListener("click", () => {
+    if (floors.length >= 60) return;
+    const top = floors[floors.length - 1];
+    floors.push({ area: top.area, height: top.height });
+    renderFloorList();
+    main();
+  });
+
+  for (const id of ["siteArea", "zone", "customBcr", "customFar", "setback", "depth", "relax", "downtown"]) {
+    $(id).addEventListener("input", main);
+    $(id).addEventListener("change", main);
+  }
+
+  main();
+}
+
+setup();
+</script>
+</body>
+</html>
