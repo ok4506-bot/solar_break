@@ -4,7 +4,7 @@
 
 파이썬 기초 수업의 과제("함수, 조건문, 반복문을 활용한 앱을 만들어 GitHub에 올리고 Cloudflare로 발행")로 만들었습니다.
 
-- 배포 주소: (Cloudflare Pages 발행 후 여기에 적기)
+- 배포 주소: (solar-break.pages.dev)
 
 ## 무엇을 검토하나
 
